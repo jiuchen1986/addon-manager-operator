@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: addon-manager-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: addon-manager-operator
+  template:
+    metadata:
+      labels:
+        name: addon-manager-operator
+    spec:
+      serviceAccountName: addon-manager-operator
+      containers:
+        - name: addon-manager-operator
+          # Replace this with the built image name
+          image: REPLACE_IMAGE
+          command:
+          - addon-manager-operator
+          imagePullPolicy: Always
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OPERATOR_NAME
+              value: "addon-manager-operator"
