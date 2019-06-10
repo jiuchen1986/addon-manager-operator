@@ -14,7 +14,7 @@ import (
 	"github.com/cnde/addon-manager-operator/pkg/controller"
 
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
-	"github.com/operator-framework/operator-sdk/pkg/leader"
+	// "github.com/operator-framework/operator-sdk/pkg/leader"
 	"github.com/operator-framework/operator-sdk/pkg/log/zap"
 	"github.com/operator-framework/operator-sdk/pkg/metrics"
 	"github.com/operator-framework/operator-sdk/pkg/restmapper"
@@ -28,8 +28,11 @@ import (
 
 // Change below variables to serve metrics on different host or port.
 var (
-	metricsHost       = "0.0.0.0"
-	metricsPort int32 = 8383
+	metricsHost                = "0.0.0.0"
+	metricsPort int32          = 8383
+        defaultAddonsDir           = "/addons"
+        defaultRequeueDelay int16  = 10
+        defaultCheckInterval int16 = 600
 )
 var log = logf.Log.WithName("cmd")
 
@@ -47,6 +50,13 @@ func main() {
 	// Add flags registered by imported packages (e.g. glog and
 	// controller-runtime)
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+
+        // Flag indicating the local directory placing addon manifests
+        pflag.CommandLine.String("addons-dir", defaultAddonsDir, "local directory placing the manifests of addons")
+        // Flag to set the delay in seconds for requeuing a unfinished task
+        pflag.CommandLine.Int16("requeue-delay", defaultRequeueDelay, "delay in seconds for requeuing a unfinished task")
+        // Flat to set the interval in seconds periordically checking addons' statuses
+        pflag.CommandLine.Int16("check-interval", defaultCheckInterval, "interval in seconds for periordically checking addons' statuses")
 
 	pflag.Parse()
 
@@ -78,11 +88,11 @@ func main() {
 	ctx := context.TODO()
 
 	// Become the leader before proceeding
-	err = leader.Become(ctx, "addon-manager-operator-lock")
-	if err != nil {
-		log.Error(err, "")
-		os.Exit(1)
-	}
+	// err = leader.Become(ctx, "addon-manager-operator-lock")
+	// if err != nil {
+	 	// log.Error(err, "")
+	 	// os.Exit(1)
+	// }
 
 	// Create a new Cmd to provide shared dependencies and start components
 	mgr, err := manager.New(cfg, manager.Options{

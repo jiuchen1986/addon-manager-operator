@@ -1,0 +1,20 @@
+apiVersion: addonmanager.cnde.com/v1alpha1
+kind: AddonSelector
+metadata:
+  name: example-addonselector
+spec:
+  # Add fields here
+  addons:
+  - name: test-addon
+    addonObjects:
+    - namespace: default
+      name: test-addon
+      group: apps
+      kind: Deployment
+    - namespace: default
+      name: test-addon-cm
+      group: ""
+      kind: ConfigMap
+    - name: test-addon-ns
+      group: ""
+      kind: Namespace

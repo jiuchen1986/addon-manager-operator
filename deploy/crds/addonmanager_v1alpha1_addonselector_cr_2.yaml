@@ -1,0 +1,12 @@
+apiVersion: addonmanager.cnde.com/v1alpha1
+kind: AddonSelector
+metadata:
+  name: example-addonselector-2
+spec:
+  # Add fields here
+  addons:
+  - name: ceph-rbd
+    addonObjects:
+    - name: erikube-rbd
+      group: storage.k8s.io
+      kind: StorageClass
