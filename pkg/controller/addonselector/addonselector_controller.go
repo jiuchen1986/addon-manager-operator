@@ -39,7 +39,41 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileAddonSelector{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+        var err error
+        var instanceId, addonsDir string
+        var delay, interval int16
+
+        instanceId, err = pflag.CommandLine.GetString("instance-id")
+        if err != nil {
+               log.Error(err, err.Error())
+               return nil
+        }
+
+        addonsDir, err = pflag.CommandLine.GetString("addons-dir")
+        if err != nil {
+               log.Error(err, err.Error())
+               return nil
+        }
+
+        delay, err = pflag.CommandLine.GetInt16("requeue-delay")
+        if err != nil {
+               log.Error(err, err.Error())
+               return nil
+        }
+
+        interval, err = pflag.CommandLine.GetInt16("check-interval")
+        if err != nil {
+               log.Error(err, err.Error())
+               return nil
+        }
+	return &ReconcileAddonSelector{
+               client:       mgr.GetClient(),
+               scheme:       mgr.GetScheme(),
+               instanceId:   instanceId,
+               addonsDir:    addonsDir,
+               requeueDelay: delay,
+               interval:     interval,
+        }
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -67,14 +101,20 @@ var _ reconcile.Reconciler = &ReconcileAddonSelector{}
 type ReconcileAddonSelector struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
-	client client.Client
-	scheme *runtime.Scheme
+	client       client.Client
+	scheme       *runtime.Scheme
+        // id of local operator instance
+        instanceId   string
+        // local directory to addons
+        addonsDir    string
+        // delay between each requeque
+        requeueDelay int16
+        // periodic checking interval
+        interval     int16
 }
 
 // Reconcile reads that state of the cluster for a AddonSelector object and makes changes based on the state read
 // and what is in the AddonSelector.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
-// a Pod as an example
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
@@ -120,7 +160,7 @@ func (r *ReconcileAddonSelector) Reconcile(request reconcile.Request) (reconcile
 
                         // Check wether the object has already been protected
                         var isProtected bool
-                        isProtected, err = IsObjectProtected(runtimeObject, addon.Name, o)
+                        isProtected, err = isObjectProtected(runtimeObject, addon.Name, r.addonsDir, o)
                         if err != nil {
                                 requeue = true
                                 logObjectError(reqLogger, err, gvk.Version, o)
@@ -129,7 +169,7 @@ func (r *ReconcileAddonSelector) Reconcile(request reconcile.Request) (reconcile
 
                         if isProtected {
                                 logObjectInfo(reqLogger, "Object has already been protected!", gvk.Version, o)
-                                SetAddonObjectStatus(instance, addon.Name, o, true)
+                                setAddonObjectStatus(instance, addon.Name, r.instanceId, o, true)
                                 continue
                         }
 
@@ -149,7 +189,9 @@ func (r *ReconcileAddonSelector) Reconcile(request reconcile.Request) (reconcile
                         }
 
                         // Add the object to protection
-                        _, err = AddObjectToProtect(runtimeObject, addon.Name, o)
+                        // var write_obj runtime.Object
+                        // write_obj, err = addObjectToProtect(runtimeObject, addon.Name, r.addonsDir, o)
+                        _, err = addObjectToProtect(runtimeObject, addon.Name, r.addonsDir, o)
                         if err != nil {
                                 requeue = true
                                 logObjectError(reqLogger, err, gvk.Version, o)
@@ -159,25 +201,15 @@ func (r *ReconcileAddonSelector) Reconcile(request reconcile.Request) (reconcile
                         // fmt.Println(write_obj)
 
                         logObjectInfo(reqLogger, "Object is protected!", gvk.Version, o)
-                        SetAddonObjectStatus(instance, addon.Name, o, true)
+                        setAddonObjectStatus(instance, addon.Name, r.instanceId, o, true)
                }
         }
 
         if requeue {
-                delay, err := pflag.CommandLine.GetInt16("requeue-delay")
-                if err != nil {
-                        reqLogger.Error(err, err.Error())
-                        return reconcile.Result{RequeueAfter: time.Second*10,}, nil
-                }
-                return reconcile.Result{RequeueAfter: time.Second*time.Duration(delay),}, nil
+                return reconcile.Result{RequeueAfter: time.Second*time.Duration(r.requeueDelay),}, nil
         }
 
-        interval, er := pflag.CommandLine.GetInt16("check-interval")
-        if er != nil {
-                reqLogger.Error(err, err.Error())
-                return reconcile.Result{RequeueAfter: time.Second*600,}, nil
-        }
-	return reconcile.Result{RequeueAfter: time.Second*time.Duration(interval),}, nil
+	return reconcile.Result{RequeueAfter: time.Second*time.Duration(r.interval),}, nil
 
 }
 

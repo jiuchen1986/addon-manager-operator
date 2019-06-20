@@ -41,10 +41,14 @@ type AddonSelectorStatus struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book.kubebuilder.io/beyond_basics/generating_crd.html
         // Use pointers for easy updating
-        AddonStatuses map[string] *AddonStatus `json:"addonStatuses,omitempty"`
+        // When multiple operator instance exist in non-leadering model, each instance will update status for each object
+        // To avoid conficts and implementing lock mechanism, each instance will use Patch to update this part
+        // Key of this map is a unique identity of each instance within a cluster, e.g. Pod name 
+        InstanceAwareAddonStatuses map[string] []*AddonStatus `json:"instanceAwareAddonStatuses,omitempty"`
 }
 
 type AddonStatus struct {
+        AddonName string `json:"addonName"`
         // Use pointers for easy updating
         AddonObjectStatuses []*AddonObjectStatus `json:"addonObjectStatuses"`
 }

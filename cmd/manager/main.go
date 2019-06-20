@@ -33,6 +33,7 @@ var (
         defaultAddonsDir           = "/addons"
         defaultRequeueDelay int16  = 10
         defaultCheckInterval int16 = 600
+        defaultInstanceId = "addon-manager-operator"
 )
 var log = logf.Log.WithName("cmd")
 
@@ -55,8 +56,10 @@ func main() {
         pflag.CommandLine.String("addons-dir", defaultAddonsDir, "local directory placing the manifests of addons")
         // Flag to set the delay in seconds for requeuing a unfinished task
         pflag.CommandLine.Int16("requeue-delay", defaultRequeueDelay, "delay in seconds for requeuing a unfinished task")
-        // Flat to set the interval in seconds periordically checking addons' statuses
+        // Flag to set the interval in seconds periordically checking addons' statuses
         pflag.CommandLine.Int16("check-interval", defaultCheckInterval, "interval in seconds for periordically checking addons' statuses")
+        // Flag to set the id of local instance, this id will be used to update CR's statuses
+        pflag.CommandLine.String("instance-id", defaultInstanceId, "id of local operator instance")
 
 	pflag.Parse()
 

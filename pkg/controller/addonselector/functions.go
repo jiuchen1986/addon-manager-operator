@@ -13,15 +13,13 @@ import (
         metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
         "sigs.k8s.io/yaml"
-
-        "github.com/spf13/pflag"
 )
 
 // Set status on an object of an Addon
-func SetAddonObjectStatus(selector *addonmanagerv1alpha1.AddonSelector, addon string, object addonmanagerv1alpha1.AddonObject, protect bool) error {
+func setAddonObjectStatus(selector *addonmanagerv1alpha1.AddonSelector, addon, instanceId string, object addonmanagerv1alpha1.AddonObject, protect bool) error {
 
-        if selector.Status.AddonStatuses == nil {
-               selector.Status.AddonStatuses = make(map[string] *addonmanagerv1alpha1.AddonStatus)
+        if selector.Status.InstanceAwareAddonStatuses == nil {
+               selector.Status.InstanceAwareAddonStatuses = make(map[string] []*addonmanagerv1alpha1.AddonStatus)
         }
 
         objectStatus := &addonmanagerv1alpha1.AddonObjectStatus{
@@ -34,35 +32,68 @@ func SetAddonObjectStatus(selector *addonmanagerv1alpha1.AddonSelector, addon st
                Protect: protect,
         }
 
-        addonStatus, ok := selector.Status.AddonStatuses[addon]
+        instanceStatus, ok := selector.Status.InstanceAwareAddonStatuses[instanceId]
         if !ok {
-               selector.Status.AddonStatuses[addon] = &addonmanagerv1alpha1.AddonStatus{
-                       AddonObjectStatuses: make([]*addonmanagerv1alpha1.AddonObjectStatus, 1),
+               firstAddonStatus := &addonmanagerv1alpha1.AddonStatus{
+                         AddonName:           addon,
+                         AddonObjectStatuses: []*addonmanagerv1alpha1.AddonObjectStatus{objectStatus},
                }
-               selector.Status.AddonStatuses[addon].AddonObjectStatuses[0] = objectStatus
-        } else {
-               for _, status := range addonStatus.AddonObjectStatuses {
-                         if status.AddonObject == object {
-                                   status.Protect = protect
-                                   return nil
-                         }
-               }
-               objectStatuses := selector.Status.AddonStatuses[addon].AddonObjectStatuses
-               objectStatuses = append(objectStatuses, objectStatus)
-               selector.Status.AddonStatuses[addon].AddonObjectStatuses = objectStatuses
+               selector.Status.InstanceAwareAddonStatuses[instanceId] = []*addonmanagerv1alpha1.AddonStatus{firstAddonStatus}
+               return nil
         }
+        for _, addonStatus := range instanceStatus {
+               if addonStatus.AddonName == addon {
+                         addonStatus.AddonObjectStatuses = updateAddonObjectStatus(addonStatus.AddonObjectStatuses, objectStatus)
+                         return nil
+               }
+        }
+        newAddonStatus := &addonmanagerv1alpha1.AddonStatus{
+               AddonName:           addon,
+               AddonObjectStatuses: []*addonmanagerv1alpha1.AddonObjectStatus{objectStatus},
+        }
+        selector.Status.InstanceAwareAddonStatuses[instanceId] = append(instanceStatus, newAddonStatus)
 
         return nil
 
 }
 
-// Add object to protection by writing manifest to disk
-func AddObjectToProtect(obj runtime.Object, addon string, addonObj addonmanagerv1alpha1.AddonObject) (runtime.Object, error) {
+// Append or update an object's status in a list of pointers to AddonObjectStatus
+func updateAddonObjectStatus(sts []*addonmanagerv1alpha1.AddonObjectStatus, st *addonmanagerv1alpha1.AddonObjectStatus) []*addonmanagerv1alpha1.AddonObjectStatus {
+        found := false
+        for _, objectStatus := range sts {
+               if reflect.DeepEqual(objectStatus.AddonObject, st.AddonObject) {
+                        objectStatus.Protect = st.Protect
+                        found = true
+               }
+        }
+        if !found {
+               sts = append(sts, st)
+        }
+        return sts
+}
+
+// Add object to protection by writing manifests to disk
+func addObjectToProtect(obj runtime.Object, addon, addonsDir string, addonObj addonmanagerv1alpha1.AddonObject) (runtime.Object, error) {
+        genObj, serialized, err := genObjectToProtect(obj, addonObj)
+        if err != nil {
+               return nil, err
+        }
+
+        _, er := writeObjectToDisk(serialized, addon, addonsDir, addonObj)
+        if er != nil {
+               return genObj, err
+        }
+
+        return genObj, nil
+}
+
+// Generate the object used for protection
+func genObjectToProtect(obj runtime.Object, addonObj addonmanagerv1alpha1.AddonObject) (runtime.Object, []byte, error) {
 
         // Transform the obj to metav1.Object
         objMeta, ok := obj.(metav1.Object)
         if !ok {
-                return nil, fmt.Errorf("Object %v doesn't implement metav1.Object!", obj)
+                return nil, nil, fmt.Errorf("Object %v doesn't implement metav1.Object!", obj)
         }
 
         // Set annotation to object recognized by addon-manager
@@ -104,26 +135,22 @@ func AddObjectToProtect(obj runtime.Object, addon string, addonObj addonmanagerv
         valueStatus := reflect.ValueOf(obj).Elem().FieldByName("Status")
         if !reflect.DeepEqual(valueStatus, reflect.ValueOf(nil)) {
                 if !valueStatus.CanSet() {
-                        return nil, fmt.Errorf("Status of object %v cannot be set!", obj)
+                        return nil, nil, fmt.Errorf("Status of object %v cannot be set!", obj)
                 }
                 valueStatus.Set(reflect.Zero(valueStatus.Type()))
         }
  
-        if err := writeObjectToDisk(obj, addon, addonObj); err != nil {
-                return nil, err
+        serialized, err := yaml.Marshal(obj)
+        if err != nil {
+                return obj, nil, err
         }
 
-        return obj, nil
+        return obj, serialized, nil
 }
 
 // Check whether the object has been already protected by check files in disk
-func IsObjectProtected(obj runtime.Object, addon string, addonObj addonmanagerv1alpha1.AddonObject) (bool, error) {
+func isObjectProtected(obj runtime.Object, addon, addonsDir string, addonObj addonmanagerv1alpha1.AddonObject) (bool, error) {
 
-        //For now, only check whether a file named <addon_name>_<object_kind>_<namespace>_<name>.yaml exists
-        addonsDir, err := pflag.CommandLine.GetString("addons-dir")
-        if err != nil {
-                return false, err
-        }
 
         filename, er := filepath.Abs(filepath.Join(addonsDir, fmt.Sprintf("%s_%s_%s_%s.yaml", addon, addonObj.Kind, addonObj.Namespace, addonObj.Name)))
         if er != nil {
@@ -142,32 +169,32 @@ func IsObjectProtected(obj runtime.Object, addon string, addonObj addonmanagerv1
 }
 
 // Write the manifest file of an object to the disk
-func writeObjectToDisk(obj runtime.Object, addon string, addonObj addonmanagerv1alpha1.AddonObject) error {
+func writeObjectToDisk(serialized []byte, addon, addonsDir string, addonObj addonmanagerv1alpha1.AddonObject) (string, error) {
+
+        dirAbs, err := filepath.Abs(addonsDir)
+        if err != nil {
+                return "", err
+        }
+        if _, err := os.Stat(dirAbs); err != nil {
+                return "", err
+        }
 
 	// writes the object to disk
-	serialized, err := yaml.Marshal(obj)
-	if err != nil {
-                return err
-	}
-
-        // fmt.Println(string(serialized))
-        var addonsDir string
-        addonsDir, err = pflag.CommandLine.GetString("addons-dir")
-        if err != nil {
-                return err
-        }
-        // fmt.Println("Addons-dir:", addonsDir)
-        
         // Name of object file is formatted as <addon_name>_<object_kind>_<namespace>_<name>.yaml
         var filename string
-	filename, err = filepath.Abs(filepath.Join(addonsDir, fmt.Sprintf("%s_%s_%s_%s.yaml", addon, addonObj.Kind, addonObj.Namespace, addonObj.Name)))
+	filename, err = filepath.Abs(filepath.Join(addonsDir, genManifestFileName(addon, addonObj)))
         if err != nil {
-                return err
+                return "", err
         }
 
 	if err := ioutil.WriteFile(filename, serialized, 0666); err != nil {
-                return err
+                return "", err
 	}
 
-	return nil
+	return string(serialized), nil
+}
+
+func genManifestFileName(addon string, addonObj addonmanagerv1alpha1.AddonObject) string {
+        // Name of object file is formatted as <addon_name>_<object_kind>_<namespace>_<name>.yaml
+        return fmt.Sprintf("%s_%s_%s_%s.yaml", addon, addonObj.Kind, addonObj.Namespace, addonObj.Name)
 }
