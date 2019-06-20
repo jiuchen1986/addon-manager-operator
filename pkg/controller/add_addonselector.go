@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"github.com/cnde/addon-manager-operator/pkg/controller/addonselector"
+	"github.com/jiuchen1986/addon-manager-operator/pkg/controller/addonselector"
 )
 
 func init() {

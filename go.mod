@@ -1,4 +1,4 @@
-module github.com/cnde/addon-manager-operator
+module github.com/jiuchen1986/addon-manager-operator
 
 require (
 	contrib.go.opencensus.io/exporter/ocagent v0.4.9 // indirect

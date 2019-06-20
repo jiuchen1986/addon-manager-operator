@@ -1,7 +1,7 @@
 package apis
 
 import (
-	"github.com/cnde/addon-manager-operator/pkg/apis/addonmanager/v1alpha1"
+	"github.com/jiuchen1986/addon-manager-operator/pkg/apis/addonmanager/v1alpha1"
 )
 
 func init() {

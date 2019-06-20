@@ -13,9 +13,9 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/cnde/addon-manager-operator/pkg/apis/addonmanager/v1alpha1.AddonSelector":       schema_pkg_apis_addonmanager_v1alpha1_AddonSelector(ref),
-		"github.com/cnde/addon-manager-operator/pkg/apis/addonmanager/v1alpha1.AddonSelectorSpec":   schema_pkg_apis_addonmanager_v1alpha1_AddonSelectorSpec(ref),
-		"github.com/cnde/addon-manager-operator/pkg/apis/addonmanager/v1alpha1.AddonSelectorStatus": schema_pkg_apis_addonmanager_v1alpha1_AddonSelectorStatus(ref),
+		"github.com/jiuchen1986/addon-manager-operator/pkg/apis/addonmanager/v1alpha1.AddonSelector":       schema_pkg_apis_addonmanager_v1alpha1_AddonSelector(ref),
+		"github.com/jiuchen1986/addon-manager-operator/pkg/apis/addonmanager/v1alpha1.AddonSelectorSpec":   schema_pkg_apis_addonmanager_v1alpha1_AddonSelectorSpec(ref),
+		"github.com/jiuchen1986/addon-manager-operator/pkg/apis/addonmanager/v1alpha1.AddonSelectorStatus": schema_pkg_apis_addonmanager_v1alpha1_AddonSelectorStatus(ref),
 	}
 }
 
@@ -46,19 +46,19 @@ func schema_pkg_apis_addonmanager_v1alpha1_AddonSelector(ref common.ReferenceCal
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/cnde/addon-manager-operator/pkg/apis/addonmanager/v1alpha1.AddonSelectorSpec"),
+							Ref: ref("github.com/jiuchen1986/addon-manager-operator/pkg/apis/addonmanager/v1alpha1.AddonSelectorSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/cnde/addon-manager-operator/pkg/apis/addonmanager/v1alpha1.AddonSelectorStatus"),
+							Ref: ref("github.com/jiuchen1986/addon-manager-operator/pkg/apis/addonmanager/v1alpha1.AddonSelectorStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/cnde/addon-manager-operator/pkg/apis/addonmanager/v1alpha1.AddonSelectorSpec", "github.com/cnde/addon-manager-operator/pkg/apis/addonmanager/v1alpha1.AddonSelectorStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/jiuchen1986/addon-manager-operator/pkg/apis/addonmanager/v1alpha1.AddonSelectorSpec", "github.com/jiuchen1986/addon-manager-operator/pkg/apis/addonmanager/v1alpha1.AddonSelectorStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 

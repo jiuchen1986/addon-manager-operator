@@ -5,7 +5,7 @@ import (
         // "fmt"
         "time"
 
-	addonmanagerv1alpha1 "github.com/cnde/addon-manager-operator/pkg/apis/addonmanager/v1alpha1"
+	addonmanagerv1alpha1 "github.com/jiuchen1986/addon-manager-operator/pkg/apis/addonmanager/v1alpha1"
 
         "github.com/go-logr/logr"
         "github.com/spf13/pflag"

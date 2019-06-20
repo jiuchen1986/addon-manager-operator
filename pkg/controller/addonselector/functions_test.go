@@ -8,7 +8,7 @@ import (
         "path/filepath"
         "io/ioutil"
 		
-        addonmanagerv1alpha1 "github.com/cnde/addon-manager-operator/pkg/apis/addonmanager/v1alpha1"
+        addonmanagerv1alpha1 "github.com/jiuchen1986/addon-manager-operator/pkg/apis/addonmanager/v1alpha1"
         metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
         appsv1 "k8s.io/api/apps/v1"
         corev1 "k8s.io/api/core/v1"
