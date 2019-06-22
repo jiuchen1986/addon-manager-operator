@@ -1,9 +1,8 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: DaemonSet
 metadata:
   name: addon-manager-operator
 spec:
-  replicas: 1
   selector:
     matchLabels:
       name: addon-manager-operator
@@ -13,12 +12,22 @@ spec:
         name: addon-manager-operator
     spec:
       serviceAccountName: addon-manager-operator
+      tolerations:
+      - operator: Exists
+        effect: NoSchedule
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
       containers:
         - name: addon-manager-operator
           # Replace this with the built image name
-          image: REPLACE_IMAGE
+          image: docker.io/jiuchen1986/addon-manager-operator:v0.0.1
           command:
           - addon-manager-operator
+          args:
+          - --instance-id
+          - "$(POD_NAME)"
+          - --addons-dir
+          - /addons
           imagePullPolicy: Always
           env:
             - name: WATCH_NAMESPACE
@@ -32,3 +41,13 @@ spec:
                   fieldPath: metadata.name
             - name: OPERATOR_NAME
               value: "addon-manager-operator"
+          volumeMounts:
+          - name: addons
+            mountPath: /addons
+      volumes:
+      - name: addons
+        hostPath:
+          path: /etc/kubernetes/addons
+          type: DirectoryOrCreate
+      securityContext:
+        runAsUser: 0
