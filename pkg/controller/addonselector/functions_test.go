@@ -3,10 +3,12 @@ package addonselector
 import (
         "testing"
         "reflect"
-        //"fmt"
+        "fmt"
         "os"
+        "encoding/json"
         "path/filepath"
         "io/ioutil"
+        "time"
 		
         addonmanagerv1alpha1 "github.com/jiuchen1986/addon-manager-operator/pkg/apis/addonmanager/v1alpha1"
         metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,7 +16,9 @@ import (
         corev1 "k8s.io/api/core/v1"
         "k8s.io/apimachinery/pkg/types"
         "k8s.io/apimachinery/pkg/util/intstr"
+        "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
         //"k8s.io/apimachinery/pkg/runtime"
+        "k8s.io/client-go/kubernetes/scheme"
 )
 
 var defaultInstanceId string = "addon-manager-operator"
@@ -143,6 +147,8 @@ func genExampleStructuredObject() (*appsv1.Deployment, addonmanagerv1alpha1.Addo
         *deadLine     = int32(600)
         *historyLimit = int32(2)
         *gracePeriod  = int64(60)
+        loc, _ := time.LoadLocation("CET")
+        timeValue := metav1.Date(2019, time.June, 22, 7, 51, 12, 0, loc)
 
         liveObject := &appsv1.Deployment{
                 TypeMeta: metav1.TypeMeta{
@@ -212,14 +218,14 @@ func genExampleStructuredObject() (*appsv1.Deployment, addonmanagerv1alpha1.Addo
                         ReadyReplicas: int32(1),
                         UpdatedReplicas: int32(1),
                         Conditions: []appsv1.DeploymentCondition{
-                                {LastTransitionTime: metav1.Now(),
-                                 LastUpdateTime: metav1.Now(),
+                                {LastTransitionTime: timeValue,
+                                 LastUpdateTime: timeValue,
                                  Message: "Deployment has minimum availability.",
                                  Reason: "MinimumReplicasAvailable",
                                  Status: corev1.ConditionTrue,
                                  Type: appsv1.DeploymentAvailable,},
-                                {LastTransitionTime: metav1.Now(),
-                                 LastUpdateTime: metav1.Now(),
+                                {LastTransitionTime: timeValue,
+                                 LastUpdateTime: timeValue,
                                  Message: "ReplicaSet \"test-addon-cbf9fc466\" has successfully progressed.",
                                  Reason: "NewReplicaSetAvailable",
                                  Status: corev1.ConditionTrue,
@@ -239,6 +245,85 @@ func genExampleStructuredObject() (*appsv1.Deployment, addonmanagerv1alpha1.Addo
         return liveObject, addonObj, addonName
 }
 
+type testUnstructured struct{
+        metav1.TypeMeta     `json:",inline"`
+        metav1.ObjectMeta   `json:"metadata,omitempty"`
+        Size   int32        `json:"size,omitempty"`
+        Name   string       `json:"name,omitempty"`
+        Data   dataStruct   `json:"data,omitempty"`
+        Status statusStruct `json:"status,omitempty"`
+}
+
+type dataStruct struct{
+        Data []byte `json:"data,omitempty"`
+}
+
+type statusStruct struct{
+        Status []string `json:"status,omitempty"`
+}
+
+func genExampleUnstructuredObject() (*unstructured.Unstructured, addonmanagerv1alpha1.AddonObject, string) {
+        addonObj := addonmanagerv1alpha1.AddonObject{
+                Name:      "test-unstructured",
+                Namespace: "test",
+                Group:     "www.example.com",
+                Version:   "v1",
+                Kind:      "ExampleKind",
+        }
+
+        ut := testUnstructured{
+                TypeMeta: metav1.TypeMeta{
+                        Kind: addonObj.Kind,
+                        APIVersion: fmt.Sprintf("%s/%s", addonObj.Group, addonObj.Version),
+                },
+                ObjectMeta: metav1.ObjectMeta{
+                        Name: addonObj.Name,
+                        Namespace: addonObj.Namespace,
+                },
+                Size: int32(4),
+                Name: "HaHa",
+                Data: dataStruct{
+                        Data: []byte("Test data here!"),
+                },
+                Status: statusStruct{
+                        Status: []string{"Xiaoming", "Xiaohong", "Xiaolan"},
+                },
+        }
+
+        jsonByte, _ := json.Marshal(ut)
+        var out map[string] interface{}
+        json.Unmarshal(jsonByte, &out)
+
+        liveObject := &unstructured.Unstructured{Object: out,}
+
+        addonName := "test-addon"
+
+        return liveObject, addonObj, addonName
+}
+
+func TestGenUnstructuredObject(t *testing.T) {
+        addonObj := addonmanagerv1alpha1.AddonObject{
+                Name:      "test-unstructured",
+                Namespace: "default",
+                Group:     "www.example.com",
+                Version:   "v1",
+                Kind:      "ExampleKind",
+        }
+
+        unstructuredObj, err := genRuntimeObject(addonObj, scheme.Scheme)
+        if err != nil {
+              t.Errorf("Failed to generate unstructured object: %s!", err.Error())
+        }
+
+        if _, ok := unstructuredObj.(*unstructured.Unstructured); !ok {
+              t.Error("Failed to generate unstructured object, generated object should be a pointer to unstructured.Unstructured!")
+        }
+
+        if _, ok := unstructuredObj.(metav1.Object); !ok {
+              t.Error("Unstructured object doesn't implement metav1.Object!")
+        }
+}
+
 // This test relies on the test data file "testdata/serialized_test_obj.yaml"
 // which contains the serialized object for protection according to the live object generated by genExampleStructuredObject
 // Remember change the test data file if any logic change impacting the serialized output is applied
@@ -249,18 +334,12 @@ func TestGenObjectToProtect(t *testing.T) {
                 t.Errorf("Failed to generate object for protection: %s!", err.Error())
         }
 
+        // fmt.Println(string(serialized))
+
         deployObj, ok := genObj.(*appsv1.Deployment)
 
         if !ok {
                 t.Error("Failed to generate object for protection. Generated object should be a type of \"*appsv1.Deployment\"!")
-        }
-
-        if !reflect.DeepEqual(structuredObj.Spec, deployObj.Spec) {
-                t.Error("Failed to generate object for protection. Spec of generated object should be no-changed!")
-        }
-
-        if !reflect.DeepEqual(deployObj.Status, appsv1.DeploymentStatus{}) {
-                t.Error("Failed to generate object for protection. Status of generated object should be empty!")
         }
 
         if string(deployObj.GenerateName) != "" || string(deployObj.UID) != "" || string(deployObj.ResourceVersion) != "" || string(deployObj.SelfLink) != "" {
@@ -273,8 +352,36 @@ func TestGenObjectToProtect(t *testing.T) {
         }
 
         if string(serialized) != string(expectOutput) {
-                t.Error("Wrongly serialized the output object!")
+                // fmt.Println(string(expectOutput))
+                t.Error("Wrongly serialized the output object. Output should match the test data file!")
         }
+}
+
+// This test relies on the test data file "testdata/serialized_test_unstructured_obj.yaml"
+// which contains the serialized object for protection according to the live object generated by genExampleUnstructuredObject
+// Remember change the test data file if any logic change impacting the serialized output is applied
+func TestGenUnstructuredObjectToProtect(t *testing.T) {
+        unstructuredObj, addonObj, _ := genExampleUnstructuredObject()
+        genObj, serialized, err := genObjectToProtect(unstructuredObj, addonObj)
+        if err != nil {
+                t.Errorf("Failed to generate object for protection: %s!", err.Error())
+        }
+
+        _, ok := genObj.(*unstructured.Unstructured)
+
+        if !ok {
+                t.Error("Failed to generate unstructured object for protection. Generated object should be a type of \"*unstructured.Unstructured\"!")
+        }
+
+        expectOutput, er := getExpectedSerializedUnstructuredObj()
+        if er != nil {
+                t.Errorf("Failed to get expected serialized unstructured object: %s!", er.Error())
+        }
+
+        if string(serialized) != string(expectOutput) {
+                t.Error("Wrongly serialized the output unstructured object. Output should match the test data file!")
+        }
+
 }
 
 func TestWriteObjectToDisk(t *testing.T) {
@@ -325,6 +432,21 @@ func getExpectedSerializedObj() ([]byte, error) {
         }
 
         filename := filepath.Join(workDir, "testdata", "serialized_test_obj.yaml")
+        serialized, err := ioutil.ReadFile(filename)
+        if err != nil {
+                return nil, err
+        }
+
+        return serialized, nil
+}
+
+func getExpectedSerializedUnstructuredObj() ([]byte, error) {
+        workDir, er := getAbsWorkDir()
+        if er != nil {
+                return nil, er
+        }
+
+        filename := filepath.Join(workDir, "testdata", "serialized_test_unstructured_obj.yaml")
         serialized, err := ioutil.ReadFile(filename)
         if err != nil {
                 return nil, err

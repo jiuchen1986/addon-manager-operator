@@ -11,10 +11,13 @@ spec:
       name: test-addon
       group: apps
       kind: Deployment
+      version: v1
     - namespace: default
       name: test-addon-cm
       group: ""
       kind: ConfigMap
+      version: v2
     - name: test-addon-ns
       group: ""
       kind: Namespace
+      version: v1

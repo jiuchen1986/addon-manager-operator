@@ -1,0 +1,18 @@
+apiVersion: www.example.com/v1
+data:
+  data: VGVzdCBkYXRhIGhlcmUh
+kind: ExampleKind
+metadata:
+  annotations:
+    addonmanager.kubernetes.io/mode: Reconcile
+  finalizers: []
+  name: test-unstructured
+  namespace: test
+  ownerReferences: []
+name: HaHa
+size: 4
+status:
+  status:
+  - Xiaoming
+  - Xiaohong
+  - Xiaolan

@@ -25,13 +25,16 @@ type Addon struct {
 
 type AddonObject struct {
         // namespace of the object, cluster-scope if ""
-        Namespace string `json:"namespace"`
+        Namespace string `json:"namespace,omitempty"`
         // name of the object
         Name      string `json:"name"`
         // api group of the object
         Group     string `json:"group"`
         // kind of the object
         Kind      string `json:"kind"`
+        // verison of the object
+        // maybe changed automatically to a compatible version if the provided one is not supported
+        Version   string `json:"version,omitempty"`
 }
 
 // AddonSelectorStatus defines the observed state of AddonSelector

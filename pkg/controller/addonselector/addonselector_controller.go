@@ -13,7 +13,6 @@ import (
         // appsv1beta1 "k8s.io/api/apps/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-        "k8s.io/apimachinery/pkg/runtime/schema"
         "k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -146,15 +145,9 @@ func (r *ReconcileAddonSelector) Reconcile(request reconcile.Request) (reconcile
                reqLogger.Info("Found a selected addon", "addon.Name", addon.Name)
                for _, o := range addon.AddonObjects {
                         // Generate runtime object from the declaired addon object
-                        gvk := schema.GroupVersionKind{
-                                Group: o.Group,
-                                Version: r.scheme.PrioritizedVersionsForGroup(o.Group)[0].Version,
-                                Kind: o.Kind,
-                        }
-                        logObjectInfoV4(reqLogger, "Generate GVK", gvk.Version, o)
-                        runtimeObject, err := r.scheme.New(gvk)
+                        runtimeObject, err := genRuntimeObject(o, r.scheme)
                         if err != nil {
-                                logObjectError(reqLogger, err, gvk.Version, o)
+                                logObjectError(reqLogger, err, o)
                                 continue 
                         }
 
@@ -163,12 +156,12 @@ func (r *ReconcileAddonSelector) Reconcile(request reconcile.Request) (reconcile
                         isProtected, err = isObjectProtected(runtimeObject, addon.Name, r.addonsDir, o)
                         if err != nil {
                                 requeue = true
-                                logObjectError(reqLogger, err, gvk.Version, o)
+                                logObjectError(reqLogger, err, o)
                                 continue
                         }
 
                         if isProtected {
-                                logObjectInfo(reqLogger, "Object has already been protected!", gvk.Version, o)
+                                logObjectInfo(reqLogger, "Object has already been protected!", o)
                                 setAddonObjectStatus(instance, addon.Name, r.instanceId, o, true)
                                 continue
                         }
@@ -179,11 +172,11 @@ func (r *ReconcileAddonSelector) Reconcile(request reconcile.Request) (reconcile
                         if err != nil {
                                 if errors.IsNotFound(err) {
                                         requeue = true
-                                        logObjectInfo(reqLogger, "Instance of object is not found!", gvk.Version, o)
+                                        logObjectInfo(reqLogger, "Instance of object is not found!", o)
                                         continue
                                 } else {
                                         requeue = true
-                                        logObjectError(reqLogger, err, gvk.Version, o)
+                                        logObjectError(reqLogger, err, o)
                                         continue
                                 }
                         }
@@ -194,13 +187,13 @@ func (r *ReconcileAddonSelector) Reconcile(request reconcile.Request) (reconcile
                         _, err = addObjectToProtect(runtimeObject, addon.Name, r.addonsDir, o)
                         if err != nil {
                                 requeue = true
-                                logObjectError(reqLogger, err, gvk.Version, o)
+                                logObjectError(reqLogger, err, o)
                                 continue
                         }
                         // For test
                         // fmt.Println(write_obj)
 
-                        logObjectInfo(reqLogger, "Object is protected!", gvk.Version, o)
+                        logObjectInfo(reqLogger, "Object is protected!", o)
                         setAddonObjectStatus(instance, addon.Name, r.instanceId, o, true)
                }
         }
@@ -214,21 +207,21 @@ func (r *ReconcileAddonSelector) Reconcile(request reconcile.Request) (reconcile
 }
 
         
-func logObjectError(logger logr.Logger, err error, ver string, obj addonmanagerv1alpha1.AddonObject) {
+func logObjectError(logger logr.Logger, err error, obj addonmanagerv1alpha1.AddonObject) {
 
-        logger.Error(err, err.Error(), "obj.Group", obj.Group, "obj.Version", ver, "obj.Kind", obj.Kind, "obj.Namespace", obj.Namespace, "obj.Name", obj.Name)
-
-}
-
-func logObjectInfo(logger logr.Logger, msg, ver string, obj addonmanagerv1alpha1.AddonObject) {
-
-        logger.Info(msg, "obj.Group", obj.Group, "obj.Version", ver, "obj.Kind", obj.Kind, "obj.Namespace", obj.Namespace, "obj.Name", obj.Name)
+        logger.Error(err, err.Error(), "obj.Group", obj.Group, "obj.Version", obj.Version, "obj.Kind", obj.Kind, "obj.Namespace", obj.Namespace, "obj.Name", obj.Name)
 
 }
 
-func logObjectInfoV4(logger logr.Logger, msg, ver string, obj addonmanagerv1alpha1.AddonObject) {
+func logObjectInfo(logger logr.Logger, msg string, obj addonmanagerv1alpha1.AddonObject) {
 
-        logger.V(4).Info(msg, "obj.Group", obj.Group, "obj.Version", ver, "obj.Kind", obj.Kind, "obj.Namespace", obj.Namespace, "obj.Name", obj.Name)
+        logger.Info(msg, "obj.Group", obj.Group, "obj.Version", obj.Version, "obj.Kind", obj.Kind, "obj.Namespace", obj.Namespace, "obj.Name", obj.Name)
+
+}
+
+func logObjectInfoV4(logger logr.Logger, msg string, obj addonmanagerv1alpha1.AddonObject) {
+
+        logger.V(4).Info(msg, "obj.Group", obj.Group, "obj.Version", obj.Version, "obj.Kind", obj.Kind, "obj.Namespace", obj.Namespace, "obj.Name", obj.Name)
 
 }
 

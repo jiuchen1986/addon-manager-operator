@@ -10,3 +10,21 @@ spec:
     - name: erikube-rbd
       group: storage.k8s.io
       kind: StorageClass
+      version: v1
+  - name: calico
+    addonObjects:
+    - name: ippools.crd.projectcalico.org
+      group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      version: v1beta1
+    - name: default-ipv4-ippool
+      group: crd.projectcalico.org
+      kind: IPPool
+      version: v1
+  - name: local-pv-provisioner
+    addonObjects:
+    - name: local-volume-provisioner
+      group: extensions
+      kind: DaemonSet
+      version: v1beta1
+      namespace: default

@@ -12,8 +12,51 @@ import (
 
         metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+        "k8s.io/apimachinery/pkg/runtime/schema"
+        us "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured/unstructuredscheme"
+        //"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
         "sigs.k8s.io/yaml"
 )
+
+// Returen a instance of k8s runtime object according to AddonObject
+func genRuntimeObject(obj addonmanagerv1alpha1.AddonObject, scheme *runtime.Scheme) (runtime.Object, error) {
+
+        // Generate runtime object from the declaired addon object
+        gvk := schema.GroupVersionKind{
+               Group: obj.Group,
+               Kind: obj.Kind,
+        }
+
+        if gvs := scheme.PrioritizedVersionsForGroup(gvk.Group); len(gvs) > 0 {
+               found := false
+               for _, gv := range gvs {
+                      if obj.Version == gv.Version {
+                             gvk.Version = obj.Version
+                             found = true
+                             break
+                      }
+               }
+               if !found {
+                      gvk.Version = gvs[0].Version
+               }
+               if runtimeObject, err := scheme.New(gvk); err != nil {
+                      return nil, err
+               } else {
+                      return runtimeObject, nil
+               }
+               
+        } else {
+               gvk.Version = obj.Version
+               if runtimeObject, err := us.NewUnstructuredCreator().New(gvk); err != nil {
+                      return nil, err
+               } else {
+                      return runtimeObject, nil
+               }
+        }
+
+        return nil, fmt.Errorf("Failed to generate runtim object!")
+
+}
 
 // Set status on an object of an Addon
 func setAddonObjectStatus(selector *addonmanagerv1alpha1.AddonSelector, addon, instanceId string, object addonmanagerv1alpha1.AddonObject, protect bool) error {
@@ -131,14 +174,21 @@ func genObjectToProtect(obj runtime.Object, addonObj addonmanagerv1alpha1.AddonO
         objMeta.SetFinalizers([]string{})
         objMeta.SetOwnerReferences([]metav1.OwnerReference{})
 
+        // Seems for 1.13+, there is no need to clean status for running "kubectl apply -f"
         // Remove status information
-        valueStatus := reflect.ValueOf(obj).Elem().FieldByName("Status")
-        if !reflect.DeepEqual(valueStatus, reflect.ValueOf(nil)) {
-                if !valueStatus.CanSet() {
-                        return nil, nil, fmt.Errorf("Status of object %v cannot be set!", obj)
-                }
-                valueStatus.Set(reflect.Zero(valueStatus.Type()))
-        }
+        //if unsObj, ok := obj.(*unstructured.Unstructured); ok {
+        //        if valueStatus, ok := unsObj.Object["status"]; ok {
+        //                unsObj.Object["Status"] = reflect.Zero(reflect.TypeOf(valueStatus))
+        //        }
+        //} else {
+        //        valueStatus := reflect.ValueOf(obj).Elem().FieldByName("Status")
+        //        if !reflect.DeepEqual(valueStatus, reflect.ValueOf(nil)) {
+        //                if !valueStatus.CanSet() {
+        //                        return nil, nil, fmt.Errorf("Status of object %v cannot be set!", obj)
+        //                }
+        //                valueStatus.Set(reflect.Zero(valueStatus.Type()))
+        //        }
+        //}
  
         serialized, err := yaml.Marshal(obj)
         if err != nil {
