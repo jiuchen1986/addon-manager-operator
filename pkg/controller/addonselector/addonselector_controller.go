@@ -182,21 +182,18 @@ func (r *ReconcileAddonSelector) Reconcile(request reconcile.Request) (reconcile
                         }
 
                         // Add the object to protection
-                        // var write_obj runtime.Object
-                        // write_obj, err = addObjectToProtect(runtimeObject, addon.Name, r.addonsDir, o)
                         _, err = addObjectToProtect(runtimeObject, addon.Name, r.addonsDir, o)
                         if err != nil {
                                 requeue = true
                                 logObjectError(reqLogger, err, o)
                                 continue
                         }
-                        // For test
-                        // fmt.Println(write_obj)
 
                         logObjectInfo(reqLogger, "Object is protected!", o)
                         setAddonObjectStatus(instance, addon.Name, r.instanceId, o, true)
                }
         }
+        r.client.Status().Update(context.TODO(), instance)
 
         if requeue {
                 return reconcile.Result{RequeueAfter: time.Second*time.Duration(r.requeueDelay),}, nil
