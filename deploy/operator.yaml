@@ -20,7 +20,7 @@ spec:
       containers:
         - name: addon-manager-operator
           # Replace this with the built image name
-          image: docker.io/jiuchen1986/addon-manager-operator:v0.0.1
+          image: docker.io/jiuchen1986/addon-manager-operator:v0.0.2
           command:
           - addon-manager-operator
           args:
