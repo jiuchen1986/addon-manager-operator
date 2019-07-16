@@ -1,0 +1,6 @@
+#!/bin/bash
+echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+COMMIT=$(git log -1 --pretty=format:"%h")
+docker push docker.io/jiuchen1986/addon-manager-operator:$COMMIT
+docker tag docker.io/jiuchen1986/addon-manager-operator:$COMMIT docker.io/jiuchen1986/addon-manager-operator:latest
+docker push docker.io/jiuchen1986/addon-manager-operator:latest

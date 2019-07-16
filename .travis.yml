@@ -1,0 +1,25 @@
+language: go
+dist: xenial
+go:
+- 1.12.x
+env:
+  global:
+  - GO111MODULE=on
+  - OPERATOR_VERSION=v0.9.0
+  - secure: DTFQRHBx26hYRKX+g1EKYBOq+PvwzWan9D8Aga2WaB5c7xIYJTF2/A9eHbiZmVr2/PO8GxA4N8FgCttL5PS5vJhTZ2aSDKKSELmyDXM+/4UuKhWz05Qqj199VPtQnhNf6vbgVO80DRif4s9U0Q4VEOyY/ols0rQZ1WReulyCK/McfbhwnH+G9lYxJzSuYk0evlZz5fm4zq24L/mf0+ZVw4RJxCxsQmxbN8INtYTNW7Mn9ckEogEi4DapsmnOyoZmJf6de8ZkbtLDx9e6eWhS2Lb6Q3W3obfCuMn3vnA0A6MNkWJzHLd/foiJN+0izuB1EhkJYZbtVhKKX0/iuvbFNwrYOjwqKoCbZ1L51c4G9oJ8d7L/zy/50Ri/KiuUfYFh4jg40TV/vqQpl6EuZP4RUTB6Qc6BEGiczj4P72QLH1WuWWtVqmnzkxrnaoVZoSnQsSUiH+i4SZGbd+EZC6zgh+uv2tWgn6RBJ8hjP/eUTgoNyhjy78ZrmtEWyK5eTzrnRyqPvJ6DmeVAdQM0GRZroiDW1qSapa9nzCoawK85B8sCvikq7/GGHBGCaoDxQlo6tTUEpHlWGpeSOl2oStxzblTM67gdLbqZX6mkdMcPEdP0C+g6lHbxcPAQS+49hOE4q/rBlYqnjhAeSvvZTSS0oPGi4zPSl7DqYzTKKXc/xsw=
+  - secure: YYHNddVSOB9luEDwsUDssPJ6ABmUjRO3KASpzx9meaqpGoiGomj7zKW289LF3WOqnWLa0ugnONpqxshc7BFyqPkZv8T/0PWcaH95zK55tHlxDtNN7e7WLgGFbgbhaoUDv1LdTzJCXNCFwA2rIG3siALpe8GKmsCiPFl5WQMVvy5XB8Gy/fC3u/nRFKkJaRWdINl9LdLKFCC4KauCCg2962mRq443XNtwdumdU2BtuVg/jSCzQIvl4SRSIKvj+LoFmkjJoo2v5Ay5b+5zgHOqMCHv/3yhf4v9plGD5yzcgyVSaRvvVtCuP1H+g4Ahnb/hAoYHsNQVN7E1HddwO4vogAJKNNgRiZ4kiaxxtU3hWwkKsklwXH/w3lCKK/PW5sDe8DsWx02H8bSgVOP98qmNwSeLyeUFN4PSpSyfn0Piij5E9wGHCb/VAWzhHQ8YFelsAIIf3+u0Imm5OpxYs8Nh2bjSNo98hqDFr3aSOKqt/ph/eZXd2pdNRmdV7vjSwZlZFwo7se5QGZd4CULIo/+AR4QlF9kNfHqCA+y09ce/kIPWNprTFUz6EfOmgHu6ei/wV8ajUhp/a8YTbdHrMsRgQHVL6kuvdrB4Bcsxtp/K3V9wJBVJIDdh745Wo3KNCpiCHOVp+9VmznHr/TQ6n1g5hq8OdfTiHai4O4Q+XPKCmqA=
+services:
+- docker
+before_install:
+- curl -OJL https://github.com/operator-framework/operator-sdk/releases/download/${OPERATOR_VERSION}/operator-sdk-${OPERATOR_VERSION}-x86_64-linux-gnu
+- chmod +x operator-sdk-${OPERATOR_VERSION}-x86_64-linux-gnu && sudo cp operator-sdk-${OPERATOR_VERSION}-x86_64-linux-gnu
+  /usr/bin/operator-sdk && rm operator-sdk-${OPERATOR_VERSION}-x86_64-linux-gnu
+install: skip
+before_script: go test -v -mod=vendor ./...
+script: operator-sdk build docker.io/jiuchen1986/addon-manager-operator:$(git log
+  -1 --pretty=format:"%h")
+deploy:
+  provider: script
+  script: bash docker_push
+  on:
+    branch: master
