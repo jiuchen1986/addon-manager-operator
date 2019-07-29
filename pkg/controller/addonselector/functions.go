@@ -149,29 +149,33 @@ func genObjectToProtect(obj runtime.Object, addonObj addonmanagerv1alpha1.AddonO
 		return nil, nil, fmt.Errorf("Object %v doesn't implement metav1.Object!", obj)
 	}
 
-	// Set annotation to object recognized by addon-manager
-	anno := objMeta.GetAnnotations()
-	if anno == nil {
-		objMeta.SetAnnotations(map[string]string{})
-	}
-	anno = objMeta.GetAnnotations()
-	anno["addonmanager.kubernetes.io/mode"] = "Reconcile"
+	// Set labels to object recognized by addon-manager
+	labels := objMeta.GetLabels()
+	if labels == nil {
+		objMeta.SetLabels(map[string]string{"addonmanager.kubernetes.io/mode": "Reconcile"})
+	} else {
+	        labels["addonmanager.kubernetes.io/mode"] = "Reconcile"
+        }
 
-	// Remove "kubernetes.io/revision" and "last-applied"
-	delKeys := []string{}
-	for key := range anno {
-		if strings.Index(key, "kubernetes.io/revision") != -1 {
-			delKeys = append(delKeys, key)
-		}
+        // remove unnecessary annotations
+        anno := objMeta.GetAnnotations()
+        if anno != nil {
+	        // Remove "kubernetes.io/revision" and "last-applied"
+	        delKeys := []string{}
+	        for key := range anno {
+		        if strings.Index(key, "kubernetes.io/revision") != -1 {
+			        delKeys = append(delKeys, key)
+		        }
 
-		if strings.Index(key, "last-applied-configuration") != -1 {
-			delKeys = append(delKeys, key)
-		}
-	}
-	for _, k := range delKeys {
-		delete(anno, k)
-	}
-	objMeta.SetAnnotations(anno)
+		        if strings.Index(key, "last-applied-configuration") != -1 {
+			        delKeys = append(delKeys, key)
+		        }
+	        }
+	        for _, k := range delKeys {
+		        delete(anno, k)
+	        }
+	        objMeta.SetAnnotations(anno)
+        }
 
 	// Remove runtime information
 	objMeta.SetGenerateName("")

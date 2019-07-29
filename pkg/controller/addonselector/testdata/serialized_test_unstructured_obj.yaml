@@ -3,9 +3,9 @@ data:
   data: VGVzdCBkYXRhIGhlcmUh
 kind: ExampleKind
 metadata:
-  annotations:
-    addonmanager.kubernetes.io/mode: Reconcile
   finalizers: []
+  labels:
+    addonmanager.kubernetes.io/mode: Reconcile
   name: test-unstructured
   namespace: test
   ownerReferences: []

@@ -163,7 +163,6 @@ func genExampleStructuredObject() (*appsv1.Deployment, addonmanagerv1alpha1.Addo
 			CreationTimestamp: metav1.Now(),
 			Labels:            map[string]string{"app": "test-addon", "release": "test-addon"},
 			Annotations: map[string]string{
-				"addonmanager.kubernetes.io/mode":                  "Reconcile",
 				"deployment.kubernetes.io/revision":                "1",
 				"kubectl.kubernetes.io/last-applied-configuration": "hahahahaha",
 			},
@@ -351,6 +350,7 @@ func TestGenObjectToProtect(t *testing.T) {
 
 	if string(serialized) != string(expectOutput) {
 		// fmt.Println(string(expectOutput))
+                // fmt.Println(string(serialized))
 		t.Error("Wrongly serialized the output object. Output should match the test data file!")
 	}
 }
@@ -377,6 +377,7 @@ func TestGenUnstructuredObjectToProtect(t *testing.T) {
 	}
 
 	if string(serialized) != string(expectOutput) {
+                fmt.Println(string(serialized))
 		t.Error("Wrongly serialized the output unstructured object. Output should match the test data file!")
 	}
 

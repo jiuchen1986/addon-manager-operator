@@ -1,10 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  annotations:
-    addonmanager.kubernetes.io/mode: Reconcile
   creationTimestamp: null
   labels:
+    addonmanager.kubernetes.io/mode: Reconcile
     app: test-addon
     release: test-addon
   name: test-addon
