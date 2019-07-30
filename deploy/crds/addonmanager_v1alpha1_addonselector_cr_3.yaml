@@ -1,0 +1,15 @@
+apiVersion: addonmanager.cnde.com/v1alpha1
+kind: AddonSelector
+metadata:
+  name: example-addonselector
+spec:
+  # Add fields here
+  addons:
+  - name: test-addon
+    addonObjects:
+    - namespace: default
+      name: test-addon-
+      group: ""
+      kind: Secret
+      version: v1
+      isNamePrefix: true

@@ -35,6 +35,9 @@ type AddonObject struct {
         // verison of the object
         // maybe changed automatically to a compatible version if the provided one is not supported
         Version   string `json:"version,omitempty"`
+        // when set to true, the name is considered as a prefix to be matched
+        // operator will list all relevant objects and find the first object match the prefix
+        IsNamePrefix  bool   `json:"isNamePrefix,omitempty"`
 }
 
 // AddonSelectorStatus defines the observed state of AddonSelector

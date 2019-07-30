@@ -130,7 +130,7 @@ func (r *ReconcileAddonSelector) Reconcile(request reconcile.Request) (reconcile
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
-                        reqLogger.Info("Request AddonSelector object is not found. Maybe deleted!")
+			reqLogger.Info("Request AddonSelector object is not found. Maybe deleted!")
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -156,6 +156,15 @@ func (r *ReconcileAddonSelector) Reconcile(request reconcile.Request) (reconcile
 				continue
 			}
 
+			if o.IsNamePrefix {
+				// Get instance of runtime object matching name prefix of AddonObject
+				runtimeObject, err = getInstanceByNamePrefix(o, r)
+				if err != nil {
+					logObjectError(reqLogger, err, o)
+					continue
+				}
+			}
+
 			// Check wether the object has already been protected
 			var isProtected bool
 			isProtected, err = isObjectProtected(runtimeObject, addon.Name, r.addonsDir, o)
@@ -171,18 +180,20 @@ func (r *ReconcileAddonSelector) Reconcile(request reconcile.Request) (reconcile
 				continue
 			}
 
-			// Get object's instance from cache
-			nn := types.NamespacedName{Namespace: o.Namespace, Name: o.Name}
-			err = r.client.Get(context.TODO(), nn, runtimeObject)
-			if err != nil {
-				if errors.IsNotFound(err) {
-					requeue = true
-					logObjectInfo(reqLogger, "Instance of object is not found!", o)
-					continue
-				} else {
-					requeue = true
-					logObjectError(reqLogger, err, o)
-					continue
+			// Get object's instance from cache if it is not retrieved before
+			if !o.IsNamePrefix {
+				nn := types.NamespacedName{Namespace: o.Namespace, Name: o.Name}
+				err = r.client.Get(context.TODO(), nn, runtimeObject)
+				if err != nil {
+					if errors.IsNotFound(err) {
+						requeue = true
+						logObjectInfo(reqLogger, "Instance of object is not found!", o)
+						continue
+					} else {
+						requeue = true
+						logObjectError(reqLogger, err, o)
+						continue
+					}
 				}
 			}
 
