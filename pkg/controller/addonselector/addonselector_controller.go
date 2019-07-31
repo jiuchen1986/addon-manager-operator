@@ -150,71 +150,85 @@ func (r *ReconcileAddonSelector) Reconcile(request reconcile.Request) (reconcile
 	for _, addon := range instance.Spec.Addons {
 		reqLogger.Info("Found a selected addon", "addon.Name", addon.Name)
 		for _, o := range addon.AddonObjects {
-                        // when name prefix matching is used, the actual name will be used in some places
-                        // this copy of original AddonObject will be used to store the actual name
-                        ao := o
-			// Generate runtime object from the declaired addon object
-			runtimeObject, err := genRuntimeObject(o, r.scheme)
-			if err != nil {
-				logObjectError(reqLogger, err, o)
-				continue
-			}
+                        // to support name prefix matching which may refer to multiple instances of same kind of object
+                        // a slice of runtime.Object is used
+                        ros := []runtime.Object{}
+                        // when use name prefix matching, the actual name(s) of the instance(s) need to be stored
+                        // a slice of addonmanagerv1alpha1.AddonObject is used to store this
+                        // each element in slice is a copy of original AddonObject except the name is the actual name
+                        aos := []addonmanagerv1alpha1.AddonObject{}
 
-			if o.IsNamePrefix {
-				// Get instance of runtime object matching name prefix of AddonObject
-				ro, err := getInstanceByNamePrefix(o, r)
-				if err != nil {
+                        if o.IsNamePrefix {
+                                var err error
+                                // Get instances of runtime object matching name prefix of AddonObject
+                                ros, err = getInstanceByNamePrefix(o, r)
+                                if err != nil {
                                         if errors.IsNotFound(err) {
-					        logObjectInfo(reqLogger, "Instance of object is not found!", o)
-					        continue
+                                                requeue = true
+                                                logObjectInfo(reqLogger, "No any instance matching name prefix is found!", o)
+                                                continue
                                         } else {
                                                 logObjectError(reqLogger, err, o)
                                                 continue
                                         }
-				}
-                                ao.Name = ro.(metav1.Object).GetName()
-			}
+                                }
+                                for _, ro := range ros {
+                                        ao := o
+                                        ao.Name = ro.(metav1.Object).GetName()
+                                        aos = append(aos, ao)
+                                }
+                        } else {
 
-			// Check wether the object has already been protected
-			var isProtected bool
-			isProtected, err = isObjectProtected(runtimeObject, addon.Name, r.addonsDir, o)
-			if err != nil {
-				requeue = true
-				logObjectError(reqLogger, err, o)
-				continue
-			}
+			         // Generate runtime object with the exact name of the AddonObject
+			         ro, err := genRuntimeObject(o, r.scheme)
+			         if err != nil {
+				        logObjectError(reqLogger, err, o)
+				        continue
+			         }
+                                 ros = append(ros, ro)
+                                 aos = append(aos, o)
+                        }
 
-			if isProtected {
-				logObjectInfo(reqLogger, "Object has already been protected!", o)
-				setAddonObjectStatus(instance, addon.Name, r.instanceId, o, true)
-				continue
-			}
-
-			// Get object's instance from cache if it is not retrieved before
-			nn := types.NamespacedName{Namespace: o.Namespace, Name: ao.Name}
-			err = r.client.Get(context.TODO(), nn, runtimeObject)
-			if err != nil {
-				if errors.IsNotFound(err) {
-					requeue = true
-					logObjectInfo(reqLogger, "Instance of object is not found!", o)
-					continue
-				} else {
-					requeue = true
-					logObjectError(reqLogger, err, o)
-					continue
-				}
-			}
-
-			// Add the object to protection
-			_, err = addObjectToProtect(runtimeObject, addon.Name, r.addonsDir, o)
-			if err != nil {
-				requeue = true
-				logObjectError(reqLogger, err, o)
-				continue
-			}
-
-			logObjectInfo(reqLogger, "Object is protected!", o)
-			setAddonObjectStatus(instance, addon.Name, r.instanceId, o, true)
+                        protectCount := 0
+			for i:=0;i<len(ros);i++ {
+                                ro := ros[i]
+                                ao := aos[i]
+                                isProtected, err := isObjectProtected(ro, addon.Name, r.addonsDir, ao)
+                                if err != nil {
+                                        logObjectError(reqLogger, err, ao)
+                                        continue
+                                }
+                                if isProtected {
+                                        logObjectInfo(reqLogger, "Instance has already been protected!", ao)
+                                        protectCount ++
+                                        continue
+                                }
+                                // Get instance from cache
+                                nn := types.NamespacedName{Namespace: ao.Namespace, Name: ao.Name}
+                                err = r.client.Get(context.TODO(), nn, ro)
+                                if err != nil {
+                                        if errors.IsNotFound(err) {
+                                                logObjectInfo(reqLogger, "Instance of is not found!", ao)
+                                        } else {
+                                                logObjectError(reqLogger, err, ao)
+                                        }
+                                        continue
+                                }
+                                // Add the instance to protection
+                                _, err = addObjectToProtect(ro, addon.Name, r.addonsDir, ao)
+                                if err != nil {
+                                        logObjectError(reqLogger, err, ao)
+                                        continue
+                                }
+                                logObjectInfo(reqLogger, "Instance is protected!", ao)
+                                protectCount++
+                        }
+                        if protectCount == len(ros) {
+                                logObjectInfo(reqLogger, "Entire addon object is protected!", o)
+                                setAddonObjectStatus(instance, addon.Name, r.instanceId, o, true)
+                        } else {
+                                requeue = true
+                        }
 		}
 	}
 	r.client.Status().Update(context.TODO(), instance)

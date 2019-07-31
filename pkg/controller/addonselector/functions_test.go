@@ -369,27 +369,45 @@ func TestGetInstanceFromListObjByNamePrefix(t *testing.T) {
                 Version:   "v1",
                 IsNamePrefix: true,
         }
-        fullName := "test-prefix-kdxldk"
+        fullName1 := "test-prefix-kdxldk"
+        fullName2 := "test-prefix-kenglw"
         listObj := &corev1.SecretList{
                 Items: []corev1.Secret{
                         corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "lalala"}},
                         corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "hahaha"}},
-                        corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: fullName}},
+                        corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: fullName1}},
                         corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "wawawa"}},
                         corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "test-predss"}},
+                        corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: fullName2}},
                 },
         }
         checkObj := &corev1.Secret{}
-        obj, err := getInstanceFromListObjByNamePrefix(listObj, checkObj, addonObj)
+        objs, err := getInstanceFromListObjByNamePrefix(listObj, checkObj, addonObj)
         if err != nil {
                 t.Errorf("Failed to get instance from list object by name prefix: %s", err)
         }
-        if reflect.TypeOf(obj) != reflect.TypeOf(checkObj) {
-                t.Errorf("Wrongly get intance from a SecretList object, get: %s, want: %s", reflect.TypeOf(obj), reflect.TypeOf(checkObj))
+        if len(objs) != 2 {
+               t.Errorf("Wrongly get instancs from a SecretList object, get len: %d, want len: %d", len(objs), 2)
         }
-        metaObj, _ := obj.(metav1.Object)
-        if metaObj.GetName() != fullName {
-                t.Errorf("Wrongly get intance from a SecretList object, get name: %s, want name: %s", metaObj.GetName(), fullName)
+        found1 := false
+        found2 := false
+        getNames := []string{}
+        for _, obj := range objs {
+                if reflect.TypeOf(obj) != reflect.TypeOf(checkObj) {
+                        t.Errorf("Wrongly get intance list from a SecretList object, get: %s, want: %s", reflect.TypeOf(obj), reflect.TypeOf(checkObj))
+                }
+                metaObj, _ := obj.(metav1.Object)
+                name := metaObj.GetName()
+                if name == fullName1 {
+                        found1 = true
+                }
+                if name == fullName2 {
+                        found2 = true
+                }
+                getNames = append(getNames, name)
+        }
+        if !found1 || !found2 {
+                t.Errorf("Wrongly get instances from a SecretList object, get names: %s, want names: %s", getNames, []string{fullName1, fullName2})
         }
 }
 

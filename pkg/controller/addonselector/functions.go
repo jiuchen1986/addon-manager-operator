@@ -73,8 +73,8 @@ func genRuntimeObject(obj addonmanagerv1alpha1.AddonObject, scheme *runtime.Sche
 	return scheme.New(gvk)
 }
 
-// Return the first instance of k8s object matching the name prefix of AddonObject
-func getInstanceByNamePrefix(addonObj addonmanagerv1alpha1.AddonObject, r *ReconcileAddonSelector) (runtime.Object, error) {
+// Return instances of k8s object matching the name prefix of AddonObject
+func getInstanceByNamePrefix(addonObj addonmanagerv1alpha1.AddonObject, r *ReconcileAddonSelector) ([]runtime.Object, error) {
 	listObj, checkObj, err := genListObject(addonObj, r.scheme)
 	if err != nil {
 		return nil, err
@@ -121,8 +121,8 @@ func genListObject(addonObj addonmanagerv1alpha1.AddonObject, scheme *runtime.Sc
         }
 }
 
-// Get instance from a list object matching the given name prefix
-func getInstanceFromListObjByNamePrefix(listObj, checkObj runtime.Object, addonObj addonmanagerv1alpha1.AddonObject) (runtime.Object, error) {
+// Get instances from a list object matching the given name prefix
+func getInstanceFromListObjByNamePrefix(listObj, checkObj runtime.Object, addonObj addonmanagerv1alpha1.AddonObject) ([]runtime.Object, error) {
         prefix := addonObj.Name
 	// check whether the input object is a list object
 	if _, ok := listObj.(metav1.ListInterface); !ok {
@@ -142,33 +142,32 @@ func getInstanceFromListObjByNamePrefix(listObj, checkObj runtime.Object, addonO
 		return nil, fmt.Errorf("The %s is not the list object of object %s!", listObj, checkObj)
 	}
 
-	var found interface{} = nil
+	found := []runtime.Object{} 
 	for i := 0; i < itemsV.Len(); i++ {
 		iV := itemsV.Index(i)
 		if !iV.CanAddr() {
-			return nil, fmt.Errorf("Type of element in Items of list object %s is not addressable!", listObj)
+			return []runtime.Object{}, fmt.Errorf("Type of element in Items of list object %s is not addressable!", listObj)
 		}
 		iIf := iV.Addr().Interface()
 		objMeta, ok := iIf.(metav1.Object)
 		if !ok {
-			return nil, fmt.Errorf("Type of element in Items of list object %s doesn't implement metav1.Object!", listObj)
+			return []runtime.Object{}, fmt.Errorf("Type of element in Items of list object %s doesn't implement metav1.Object!", listObj)
 		}
 
 		// match name prefix
 		if strings.Index(objMeta.GetName(), prefix) == 0 {
-			found = iIf
-			break
+			found = append(found, iIf.(runtime.Object))
 		}
 	}
-	if found == nil {
+	if len(found) == 0 {
                 gr := schema.GroupResource{
                         Group: addonObj.Group,
                         Resource: addonObj.Kind,
                 }
-                return nil, errors.NewNotFound(gr, "prefix: " + addonObj.Name)
+                return []runtime.Object{}, errors.NewNotFound(gr, "prefix: " + addonObj.Name)
 	}
 
-	return found.(runtime.Object), nil
+	return found, nil
 }
 
 // Set status on an object of an Addon
