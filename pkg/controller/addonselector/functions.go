@@ -15,7 +15,7 @@ import (
 	us "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured/unstructuredscheme"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	//"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+        "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
@@ -85,7 +85,7 @@ func getInstanceByNamePrefix(addonObj addonmanagerv1alpha1.AddonObject, r *Recon
 		return nil, err
 	}
 
-	return getInstanceFromListObjByNamePrefix(listObj, checkObj, addonObj.Name)
+	return getInstanceFromListObjByNamePrefix(listObj, checkObj, addonObj)
 
 }
 
@@ -122,7 +122,8 @@ func genListObject(addonObj addonmanagerv1alpha1.AddonObject, scheme *runtime.Sc
 }
 
 // Get instance from a list object matching the given name prefix
-func getInstanceFromListObjByNamePrefix(listObj, checkObj runtime.Object, prefix string) (runtime.Object, error) {
+func getInstanceFromListObjByNamePrefix(listObj, checkObj runtime.Object, addonObj addonmanagerv1alpha1.AddonObject) (runtime.Object, error) {
+        prefix := addonObj.Name
 	// check whether the input object is a list object
 	if _, ok := listObj.(metav1.ListInterface); !ok {
 		return nil, fmt.Errorf("Input object %s doesn't implement metav1.ListInterface!", listObj)
@@ -160,7 +161,11 @@ func getInstanceFromListObjByNamePrefix(listObj, checkObj runtime.Object, prefix
 		}
 	}
 	if found == nil {
-		return nil, fmt.Errorf("Object %s with name prefix of %s is not found!", checkObj, prefix)
+                gr := schema.GroupResource{
+                        Group: addonObj.Group,
+                        Resource: addonObj.Kind,
+                }
+                return nil, errors.NewNotFound(gr, "prefix: " + addonObj.Name)
 	}
 
 	return found.(runtime.Object), nil

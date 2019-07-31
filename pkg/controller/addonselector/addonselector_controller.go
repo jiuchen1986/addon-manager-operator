@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+        metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -149,6 +150,9 @@ func (r *ReconcileAddonSelector) Reconcile(request reconcile.Request) (reconcile
 	for _, addon := range instance.Spec.Addons {
 		reqLogger.Info("Found a selected addon", "addon.Name", addon.Name)
 		for _, o := range addon.AddonObjects {
+                        // when name prefix matching is used, the actual name will be used in some places
+                        // this copy of original AddonObject will be used to store the actual name
+                        ao := o
 			// Generate runtime object from the declaired addon object
 			runtimeObject, err := genRuntimeObject(o, r.scheme)
 			if err != nil {
@@ -158,11 +162,17 @@ func (r *ReconcileAddonSelector) Reconcile(request reconcile.Request) (reconcile
 
 			if o.IsNamePrefix {
 				// Get instance of runtime object matching name prefix of AddonObject
-				runtimeObject, err = getInstanceByNamePrefix(o, r)
+				ro, err := getInstanceByNamePrefix(o, r)
 				if err != nil {
-					logObjectError(reqLogger, err, o)
-					continue
+                                        if errors.IsNotFound(err) {
+					        logObjectInfo(reqLogger, "Instance of object is not found!", o)
+					        continue
+                                        } else {
+                                                logObjectError(reqLogger, err, o)
+                                                continue
+                                        }
 				}
+                                ao.Name = ro.(metav1.Object).GetName()
 			}
 
 			// Check wether the object has already been protected
@@ -181,19 +191,17 @@ func (r *ReconcileAddonSelector) Reconcile(request reconcile.Request) (reconcile
 			}
 
 			// Get object's instance from cache if it is not retrieved before
-			if !o.IsNamePrefix {
-				nn := types.NamespacedName{Namespace: o.Namespace, Name: o.Name}
-				err = r.client.Get(context.TODO(), nn, runtimeObject)
-				if err != nil {
-					if errors.IsNotFound(err) {
-						requeue = true
-						logObjectInfo(reqLogger, "Instance of object is not found!", o)
-						continue
-					} else {
-						requeue = true
-						logObjectError(reqLogger, err, o)
-						continue
-					}
+			nn := types.NamespacedName{Namespace: o.Namespace, Name: ao.Name}
+			err = r.client.Get(context.TODO(), nn, runtimeObject)
+			if err != nil {
+				if errors.IsNotFound(err) {
+					requeue = true
+					logObjectInfo(reqLogger, "Instance of object is not found!", o)
+					continue
+				} else {
+					requeue = true
+					logObjectError(reqLogger, err, o)
+					continue
 				}
 			}
 
@@ -221,18 +229,18 @@ func (r *ReconcileAddonSelector) Reconcile(request reconcile.Request) (reconcile
 
 func logObjectError(logger logr.Logger, err error, obj addonmanagerv1alpha1.AddonObject) {
 
-	logger.Error(err, err.Error(), "obj.Group", obj.Group, "obj.Version", obj.Version, "obj.Kind", obj.Kind, "obj.Namespace", obj.Namespace, "obj.Name", obj.Name)
+	logger.Error(err, err.Error(), "obj.Group", obj.Group, "obj.Version", obj.Version, "obj.Kind", obj.Kind, "obj.Namespace", obj.Namespace, "obj.Name", obj.Name, obj.Name, "obj.IsNamePrefix", obj.IsNamePrefix)
 
 }
 
 func logObjectInfo(logger logr.Logger, msg string, obj addonmanagerv1alpha1.AddonObject) {
 
-	logger.Info(msg, "obj.Group", obj.Group, "obj.Version", obj.Version, "obj.Kind", obj.Kind, "obj.Namespace", obj.Namespace, "obj.Name", obj.Name)
+	logger.Info(msg, "obj.Group", obj.Group, "obj.Version", obj.Version, "obj.Kind", obj.Kind, "obj.Namespace", obj.Namespace, "obj.Name", obj.Name, "obj.IsNamePrefix", obj.IsNamePrefix)
 
 }
 
 func logObjectInfoV4(logger logr.Logger, msg string, obj addonmanagerv1alpha1.AddonObject) {
 
-	logger.V(4).Info(msg, "obj.Group", obj.Group, "obj.Version", obj.Version, "obj.Kind", obj.Kind, "obj.Namespace", obj.Namespace, "obj.Name", obj.Name)
+	logger.V(4).Info(msg, "obj.Group", obj.Group, "obj.Version", obj.Version, "obj.Kind", obj.Kind, "obj.Namespace", obj.Namespace, "obj.Name", obj.Name, obj.Name, "obj.IsNamePrefix", obj.IsNamePrefix)
 
 }

@@ -361,7 +361,14 @@ func TestGenListObject(t *testing.T) {
 }
 
 func TestGetInstanceFromListObjByNamePrefix(t *testing.T) {
-        prefix := "test-prefix-"
+        addonObj := addonmanagerv1alpha1.AddonObject{
+                Namespace: "default",
+                Name:      "test-prefix-",
+                Group:     "",
+                Kind:      "Secret",
+                Version:   "v1",
+                IsNamePrefix: true,
+        }
         fullName := "test-prefix-kdxldk"
         listObj := &corev1.SecretList{
                 Items: []corev1.Secret{
@@ -373,7 +380,7 @@ func TestGetInstanceFromListObjByNamePrefix(t *testing.T) {
                 },
         }
         checkObj := &corev1.Secret{}
-        obj, err := getInstanceFromListObjByNamePrefix(listObj, checkObj, prefix)
+        obj, err := getInstanceFromListObjByNamePrefix(listObj, checkObj, addonObj)
         if err != nil {
                 t.Errorf("Failed to get instance from list object by name prefix: %s", err)
         }

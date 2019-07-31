@@ -13,3 +13,9 @@ spec:
       kind: Secret
       version: v1
       isNamePrefix: true
+    - namespace: default
+      name: test-addon-
+      group: apps
+      kind: Deployment
+      version: v1
+      isNamePrefix: true
