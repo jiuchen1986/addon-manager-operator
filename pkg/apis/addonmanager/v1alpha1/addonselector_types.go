@@ -38,6 +38,8 @@ type AddonObject struct {
         // when set to true, the name is considered as a prefix to be matched
         // operator will list all relevant objects and find the objects matching the prefix
         IsNamePrefix  bool   `json:"isNamePrefix,omitempty"`
+        // when set to true, finalizers of original object will be kept when writting to disk
+        KeepFinalizers bool  `json:"keepFinalizers,omitempty"`
 }
 
 // AddonSelectorStatus defines the observed state of AddonSelector

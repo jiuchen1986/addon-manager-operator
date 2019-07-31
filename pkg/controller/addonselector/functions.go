@@ -287,7 +287,9 @@ func genObjectToProtect(obj runtime.Object, addonObj addonmanagerv1alpha1.AddonO
 	objMeta.SetSelfLink("")
 	objMeta.SetCreationTimestamp(metav1.Time{})
 	// objMeta.SetInitializers(&metav1.Initializers{})
-	objMeta.SetFinalizers([]string{})
+        if !addonObj.KeepFinalizers {
+	        objMeta.SetFinalizers([]string{})
+        }
 	objMeta.SetOwnerReferences([]metav1.OwnerReference{})
 
 	// Seems for 1.13+, there is no need to clean status for running "kubectl apply -f"
