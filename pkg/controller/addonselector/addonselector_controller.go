@@ -243,7 +243,7 @@ func (r *ReconcileAddonSelector) Reconcile(request reconcile.Request) (reconcile
 
 func logObjectError(logger logr.Logger, err error, obj addonmanagerv1alpha1.AddonObject) {
 
-	logger.Error(err, err.Error(), "obj.Group", obj.Group, "obj.Version", obj.Version, "obj.Kind", obj.Kind, "obj.Namespace", obj.Namespace, "obj.Name", obj.Name, obj.Name, "obj.IsNamePrefix", obj.IsNamePrefix)
+	logger.Error(err, err.Error(), "obj.Group", obj.Group, "obj.Version", obj.Version, "obj.Kind", obj.Kind, "obj.Namespace", obj.Namespace, "obj.Name", obj.Name, "obj.IsNamePrefix", obj.IsNamePrefix)
 
 }
 
