@@ -12,6 +12,7 @@ import (
 	addonmanagerv1alpha1 "github.com/jiuchen1986/addon-manager-operator/pkg/apis/addonmanager/v1alpha1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+        "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	us "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured/unstructuredscheme"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -108,11 +109,9 @@ func genListObject(addonObj addonmanagerv1alpha1.AddonObject, scheme *runtime.Sc
 		Kind:    gvk.Kind + "List",
 	}
 	if isUnstructured {
-                if listObj, err := us.NewUnstructuredCreator().New(listGVK); err != nil {
-                        return nil, nil, err
-                } else {
-		        return listObj, obj, nil
-                }
+                listObj := &unstructured.UnstructuredList{}
+                listObj.SetGroupVersionKind(gvk)
+		return listObj, obj, nil
 	}
 	if listObj, err := scheme.New(listGVK); err != nil {
                 return nil, nil, err
