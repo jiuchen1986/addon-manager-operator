@@ -120,7 +120,7 @@ type ReconcileAddonSelector struct {
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileAddonSelector) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	reqLogger := log.WithValues("InstanceId", r.instanceId, "Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling AddonSelector")
 
 	// Fetch the AddonSelector instance
